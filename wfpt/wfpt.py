@@ -3,7 +3,7 @@ import math
 import logging
 from numpy import exp, log, sin, sqrt, pi
 
-def stdWfptLargeTime(t, w, nterms):
+def __stdWfptLargeTime(t, w, nterms):
     # large time expansion from navarro & fuss
     logger.debug("Large time expansion, %i terms" % nterms)
     piSqOv2 = 4.93480220054
@@ -12,7 +12,7 @@ def stdWfptLargeTime(t, w, nterms):
 
     return np.sum(terms)
 
-def stdWfptSmallTime(t, w, nterms):
+def __stdWfptSmallTime(t, w, nterms):
     # small time expansion navarro & fuss (todo: gondan et al. improvement)
     logger.debug("Small time expansion, %i terms" % nterms)
 
@@ -44,12 +44,12 @@ def _wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
         # make sure eps is small enough for for bound to be valid
         if eps > (1 / (2*sqrt(2*pi*ttilde))):
             smallK = 2 
-        p = stdWfptLargeTime(ttilde, x0tilde, math.ceil(largeK))
+        p = __stdWfptLargeTime(ttilde, x0tilde, math.ceil(largeK))
     else:
         # make sure eps is small enough for for bound to be valid
         if eps > (1 / (pi*sqrt(ttilde))):
             smallK = math.ceil((1 / (pi*sqrt(t))))
-        p = stdWfptSmallTime(ttilde, x0tilde, math.ceil(smallK))
+        p = __stdWfptSmallTime(ttilde, x0tilde, math.ceil(smallK))
         
     # scale from the std case to whatever is our actual
     scaler = (1 / boundarySep**2) * exp(-a*boundarySep*x0tilde-(a**2*t/2)) 
