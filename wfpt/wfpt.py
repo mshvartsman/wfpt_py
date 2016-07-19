@@ -24,7 +24,7 @@ def __stdWfptSmallTime(t, w, nterms):
     terms = 1 / sqrt(2*pi*t**3) * np.fromiter(((w+2*k)*exp(-((w+2*k)**2)/(2*t)) for k in range(fr, to)), np.float64)
     return np.sum(terms)
 
-def _wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
+def wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
 
     # boundary sep is 2 * thresh
     boundarySep = 2 * z
@@ -57,5 +57,3 @@ def _wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
     scaler = (1 / boundarySep**2) * exp(-a*boundarySep*x0tilde-(a**2*t/2)) 
 
     return log(scaler*p)
-
-wfpt_logp = np.vectorize(_wfpt_logp)
