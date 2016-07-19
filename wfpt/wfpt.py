@@ -3,6 +3,8 @@ import math
 import logging
 from numpy import exp, log, sin, sqrt, pi
 
+logger = logging.getLogger(__name__)
+
 def __stdWfptLargeTime(t, w, nterms):
     # large time expansion from navarro & fuss
     logger.debug("Large time expansion, %i terms" % nterms)
