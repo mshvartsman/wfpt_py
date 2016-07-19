@@ -33,12 +33,14 @@ def wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
     # normalize time
     ttilde = (t - t0) / (boundarySep**2)
 
-    if ttilde < 0: # t is below NDT
+    #if t is below NDT, or x0 is outside bounds, probability of any rt is 0
+    if ttilde < 0 or x0 > z or x0 < -z: 
         return -np.inf
 
     if c == 1: # by default return hit of lower bound, so if resp is correct flip
         a = -a
         x0tilde = 1 - x0tilde
+
 
     largeK = np.int(sqrt((-2*log(pi*ttilde*eps))/(pi**2*ttilde)))
     smallK = 2 + sqrt(-2*ttilde*log(2*eps*sqrt(2*pi*ttilde))) 
