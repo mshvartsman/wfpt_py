@@ -59,3 +59,14 @@ def wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
     scaler = (1 / boundarySep**2) * exp(-a*boundarySep*x0tilde-(a**2*t/2)) 
 
     return log(scaler*p)
+
+def __simulate_wfpt_single(x0, t0, a, z):
+    particle = x0
+    t = 0; 
+    while abs(particle) < z:
+        particle = particle + np.random.normal(a)
+        t = t + 1
+    return t0 + t if particle > z else -t0 - t
+
+def simulate_wfpt(x0, t0, a, z):
+    return np.fromiter((__simulate_wfpt_single(_x0, _t0, _a, _z) for _x0, _t0, _a, _z in zip(x0, t0, a, z)), np.float64)
