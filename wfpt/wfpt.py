@@ -60,6 +60,25 @@ def wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
 
     return log(scaler*p)
 
+def __standardize_bogacz(x0, a, z, s):
+    """
+        Standardize the way Bogacz et al. 2006 do: 
+        threshold/drift ratio, signal to noise ratio, x0 to drift ratio
+    """
+    ztilde = z/a
+    atilde = (a/s)**2
+    x0tilde = x0/a
+    return ztilde, atilde, x0tilde
+
+def __standardize_srivastava(x0, a, z, s):
+    """
+        Standardize the way Srivastava et al. (submitted) do: 
+        normalized threshold, normalized starting point
+    """
+    kz = (a*z)/(s*s)
+    kx = (a*x0)/(s*s)
+    return kz, kx
+
 def __simulate_wfpt_single(x0, t0, a, z):
     particle = x0
     t = 0; 
@@ -71,3 +90,30 @@ def __simulate_wfpt_single(x0, t0, a, z):
 def simulate_wfpt(x0, t0, a, z):
     return np.fromiter((__simulate_wfpt_single(_x0, _t0, _a, _z) for _x0, _t0, _a, _z in zip(x0, t0, a, z)), np.float64)
 
+def wfpt_rt(x0, t0, a, z, s):
+    if abs(a) < 1e-8: # a close to 0 (avoid float comparison)
+        # use expression for limit a->0 from Srivastava et al. 2016
+        return t0 + (z**2 - x0**2)/(s**2)
+    # expression from Bogacz et al. 2006 for nonzero drift
+    else:
+        ztilde, atilde, x0tilde = __standardize_bogacz(x0, a, z, s)
+        return rt = ztilde * tanh(ztilde * atilde) + ((2*ztilde*(1-exp(-2*x0tilde*atilde)))/(exp(2*ztilde*atilde)-exp(-2*ztilde*atilde))-x0tilde) + t0
+
+def wfpt_analytic(x0, t0, a, z, s):
+    if abs(a) < 1e-8: # a close to 0 (avoid float comparison)
+        # use expression for limit a->0 from Srivastava et al. 2016
+        return (z - x0)/(2*z)
+    # expression from Bogacz et al. 2006 for nonzero drift
+    else:
+        return 1/(1+exp(2*ztilde*atilde)) - ((1-exp(-2*x0tilde*atilde))/(exp(2*ztilde*atilde)-exp(-2*ztilde*atilde)))
+
+def wfpt_dt_upper(x0, t0, a, z, s):
+    # expected decision time, upper thresh
+    if abs(a) < 1e-8: # a close to 0 (avoid float comparison)
+        return (4 * x**2 - (z+x0)**2) / (3*s**2)
+    kz, kx = __standardize_srivastava(x0, a, z, s)
+    return (s**2)/(a**2) * (2*kz*coth(2*kz)-(kx+kz)*coth(kx+kz))
+
+def wfpt_dt_lower(x0, t0, a, z, s):
+    # expected decision time, lower thresh
+    return wfpt_dt_upper(-x0, t0, a, z, s)
