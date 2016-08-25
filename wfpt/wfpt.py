@@ -29,34 +29,34 @@ def wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
     # boundary sep is 2 * thresh
     boundarySep = 2 * z
     # initial condition is absolute, so to make it relative divide by boundarySep
-    x0tilde = ((x0+z) / boundarySep)
+    relativeInitCond = ((x0+z) / boundarySep)
     # normalize time
-    ttilde = (t - t0) / (boundarySep**2)
+    normT = (t - t0) / (boundarySep**2)
 
     #if t is below NDT, or x0 is outside bounds, probability of any rt is 0
-    if ttilde < 0 or x0 > z or x0 < -z: 
+    if normT < 0 or x0 > z or x0 < -z: 
         return -np.inf
 
     if c == 1: # by default return hit of lower bound, so if resp is correct flip
         a = -a
-        x0tilde = 1 - x0tilde
+        relativeInitCond = 1 - relativeInitCond
 
 
-    largeK = np.int(sqrt((-2*log(pi*ttilde*eps))/(pi**2*ttilde)))
-    smallK = 2 + sqrt(-2*ttilde*log(2*eps*sqrt(2*pi*ttilde))) 
+    largeK = np.int(sqrt((-2*log(pi*normT*eps))/(pi**2*normT)))
+    smallK = 2 + sqrt(-2*normT*log(2*eps*sqrt(2*pi*normT))) 
     if largeK < smallK :
         # make sure eps is small enough for for bound to be valid
-        if eps > (1 / (2*sqrt(2*pi*ttilde))):
+        if eps > (1 / (2*sqrt(2*pi*normT))):
             smallK = 2 
-        p = __stdWfptLargeTime(ttilde, x0tilde, math.ceil(largeK))
+        p = __stdWfptLargeTime(normT, relativeInitCond, math.ceil(largeK))
     else:
         # make sure eps is small enough for for bound to be valid
-        if eps > (1 / (pi*sqrt(ttilde))):
+        if eps > (1 / (pi*sqrt(normT))):
             smallK = math.ceil((1 / (pi*sqrt(t))))
-        p = __stdWfptSmallTime(ttilde, x0tilde, math.ceil(smallK))
+        p = __stdWfptSmallTime(normT, relativeInitCond, math.ceil(smallK))
         
     # scale from the std case to whatever is our actual
-    scaler = (1 / boundarySep**2) * exp(-a*boundarySep*x0tilde-(a**2*t/2)) 
+    scaler = (1 / boundarySep**2) * exp(-a*boundarySep*relativeInitCond-(a**2*t/2)) 
 
     return log(scaler*p)
 
@@ -70,3 +70,4 @@ def __simulate_wfpt_single(x0, t0, a, z):
 
 def simulate_wfpt(x0, t0, a, z):
     return np.fromiter((__simulate_wfpt_single(_x0, _t0, _a, _z) for _x0, _t0, _a, _z in zip(x0, t0, a, z)), np.float64)
+
