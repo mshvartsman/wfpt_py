@@ -1,9 +1,15 @@
 import numpy as np
 import math
 import logging
-from numpy import exp, log, sin, sqrt, pi
+from numpy import exp, log, sin, sqrt, pi, tanh, cosh, sinh
 
 logger = logging.getLogger(__name__)
+
+def coth(x): 
+    """
+    Hyperbolic cotangent, coth(x) = cosh(x) / sinh(x)
+    """    
+    return cosh(x) / sinh(x)
 
 def __stdWfptLargeTime(t, w, nterms):
     # large time expansion from navarro & fuss
@@ -24,7 +30,12 @@ def __stdWfptSmallTime(t, w, nterms):
     terms = 1 / sqrt(2*pi*t**3) * np.fromiter(((w+2*k)*exp(-((w+2*k)**2)/(2*t)) for k in range(fr, to)), np.float64)
     return np.sum(terms)
 
+
 def wfpt_logp(t, c, x0, t0, a, z, eps = 1e-10):
+    """
+        Log probability of first passage time of double-threshold wiener process 
+        (aka "pure DDM" of Bogacz et al.). Uses series truncation of Navarro & Fuss 2009
+    """
 
     # boundary sep is 2 * thresh
     boundarySep = 2 * z
@@ -79,41 +90,73 @@ def __standardize_srivastava(x0, a, z, s):
     kx = (a*x0)/(s*s)
     return kz, kx
 
-def __simulate_wfpt_single(x0, t0, a, z):
+def __simulate_wfpt_single(x0, t0, a, z, dt):
     particle = x0
     t = 0; 
     while abs(particle) < z:
-        particle = particle + np.random.normal(a)
+        particle = particle + np.random.normal(loc=a*dt, scale=sqrt(dt))
         t = t + 1
-    return t0 + t if particle > z else -t0 - t
+    return t0 + t*dt if particle > z else -t0 - t*dt
 
-def simulate_wfpt(x0, t0, a, z):
-    return np.fromiter((__simulate_wfpt_single(_x0, _t0, _a, _z) for _x0, _t0, _a, _z in zip(x0, t0, a, z)), np.float64)
+def simulate_wfpt(x0, t0, a, z, dt = 0.01):
+    """
+        Draws from the Wiener first passage time. Slow and imprecise, 
+        used primarily for testing. Production usage of this function
+        is not recommended. 
+    """
+    # promote if we get scalars (probably not the best way to do this)
+    if(type(x0)!='numpy.ndarray'):
+        x0 = np.array([x0])
+    if(type(t0)!='numpy.ndarray'):
+        t0 = np.array([t0])
+    if(type(a)!='numpy.ndarray'):
+        a = np.array([a])
+    if(type(z)!='numpy.ndarray'):
+        z = np.array([z])
+    return np.fromiter((__simulate_wfpt_single(_x0, _t0, _a, _z, dt) for _x0, _t0, _a, _z in zip(x0, t0, a, z)), np.float64)
 
-def wfpt_rt(x0, t0, a, z, s):
+def wfpt_rt(x0, t0, a, z, s=1):
+    """
+    Expected first passage time of a two-boundary wiener process. 
+    Uses Bogacz et al. 2006 expression for nonzero drift,
+    Srivastava et al. expression for zero-drift. 
+    """
     if abs(a) < 1e-8: # a close to 0 (avoid float comparison)
         # use expression for limit a->0 from Srivastava et al. 2016
         return t0 + (z**2 - x0**2)/(s**2)
     # expression from Bogacz et al. 2006 for nonzero drift
     else:
         ztilde, atilde, x0tilde = __standardize_bogacz(x0, a, z, s)
-        return rt = ztilde * tanh(ztilde * atilde) + ((2*ztilde*(1-exp(-2*x0tilde*atilde)))/(exp(2*ztilde*atilde)-exp(-2*ztilde*atilde))-x0tilde) + t0
+        return ztilde * tanh(ztilde * atilde) + ((2*ztilde*(1-exp(-2*x0tilde*atilde)))/(exp(2*ztilde*atilde)-exp(-2*ztilde*atilde))-x0tilde) + t0
 
-def wfpt_analytic(x0, t0, a, z, s):
+def wfpt_er(x0, t0, a, z, s=1):
+    """
+    Crossing probability in the -drift direction (aka "Error rate") for wiener process. 
+    Uses Bogacz et al. 2006 expression for nonzero drift, Srivastava et al.
+    expression for zero-drift. 
+    """
     if abs(a) < 1e-8: # a close to 0 (avoid float comparison)
         # use expression for limit a->0 from Srivastava et al. 2016
-        return (z - x0)/(2*z)
+        return (z-x0)/(2*z)
     # expression from Bogacz et al. 2006 for nonzero drift
     else:
-        return 1/(1+exp(2*ztilde*atilde)) - ((1-exp(-2*x0tilde*atilde))/(exp(2*ztilde*atilde)-exp(-2*ztilde*atilde)))
+        ztilde, atilde, x0tilde = __standardize_bogacz(x0, a, z, s)
+        return 1/(1+exp(2*ztilde*atilde)) - ((1-exp(-2*x0*atilde))/(exp(2*ztilde*atilde)-exp(-2*ztilde*atilde)))
 
-def wfpt_dt_upper(x0, t0, a, z, s):
-    # expected decision time, upper thresh
+def wfpt_dt_upper(x0, t0, a, z, s=1):
+    """
+    Expected conditional first passage time, conditioned on crossing threshold
+    in the +drift direction (aka "upper" or "correct")
+    """
+    
     if abs(a) < 1e-8: # a close to 0 (avoid float comparison)
         return (4 * x**2 - (z+x0)**2) / (3*s**2)
     kz, kx = __standardize_srivastava(x0, a, z, s)
     return (s**2)/(a**2) * (2*kz*coth(2*kz)-(kx+kz)*coth(kx+kz))
 
-def wfpt_dt_lower(x0, t0, a, z, s):
-    # expected decision time, lower thresh
+def wfpt_dt_lower(x0, t0, a, z, s=1):
+    """
+    Expected conditional first passage time, conditioned on crossing threshold
+    in the -drift direction (aka "lower" or "error")
+    """
     return wfpt_dt_upper(-x0, t0, a, z, s)
